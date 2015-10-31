@@ -1,14 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://code.jquery.com/jquery-2.1.4.js"></script>
-<meta name="description" content="Ofek's Kalahman">
+  <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+  <script src="http://the-ofek-foundation.github.io/MCTS.js"></script>
+  <meta name="description" content="Ofek's Kalahman">
   <meta charset="utf-8">
   <title>Ofek's Kalahman</title>
   <link rel="stylesheet" type="text/css" href="styles.css">
 </head>
 <body>
   <canvas id="board"></canvas>
+  <div id="new-game-menu">
+  <h1>New Game</h1>
+  <form id="form-new-game" action="">
+    Number of Pits (1 - 10):
+    <input type="number" name="num-pits" min="1" max="10" step="1" value="6" required>
+    <br />
+    Seeds per Pit (1 - 12):
+    <input type="number" name="seeds-per-pit" min="1" max="12" step="1" value="4" required>
+    <br />
+    Reverse Direction? 
+    <input type="checkbox" id="reverse" name="reverse" checked>
+    <br />
+    Capture Rules:
+    <input list="capture-rules" name="capture-rules" value="Same Side and Opposite Occupied">
+    <datalist id="capture-rules">
+      <option value="No Capturing"></option>
+      <option value="Always Capturing"></option>
+      <option value="Same Side and Opposite Occupied"></option>
+      <option value="Opposite Occupied"></option>
+    </datalist>
+    <br />
+    
+    Monte Carlo Ai? 
+    <input type="checkbox" id="ai" name="ai">
+    <br />
+    AI Turn:
+    <input list="ai-turn" name="ai-turn" value="Second">
+    <datalist id="ai-turn">
+      <option value="First"></option>
+      <option value="Second"></option>
+      <!-- <option value="Both"></option> -->
+    </datalist>
+    <br />
+    Monte Carlo Trials:
+    <input type="range" name="mc-trials" id="mc-trials" min="10000" max="400000" step="10000" value="100000">
+    <br /><br />
+    <input type="submit" value="New Game">
+    <br /><br />
+    <button id="btn-new-game-cancel">Cancel</button>
+  </form>
+</div>
 </body>
 <script src="script.js"></script>
 </html>
