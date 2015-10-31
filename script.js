@@ -9,6 +9,7 @@ var capturing_rules = "Same Side and Opposite Occupied";
 var reverse_drawing = true;
 var last_capture_global, last_move_global, last_sow_global;
 var global_ROOT;
+var expansion_const = 2;
 
 var boardui = document.getElementById("board");
 var brush = boardui.getContext("2d");
@@ -44,12 +45,12 @@ function new_game() {
 }
 
 function create_MCTS_root() {
-  return new MCTS_Node(new State(board, top_turn_global), null, null, MCTS_simulate, MCTS_get_children);
+  return new MCTS_Node(new State(board, top_turn_global), null, null, MCTS_simulate, MCTS_get_children, expansion_const);
 }
 
 function MCTS_get_next_root(pit_loc) {
-  if (!global_ROOT)
-    return;
+  if (!global_ROOT || !global_ROOT.children)
+    return null;
   for (var i = 0; i < global_ROOT.children.length; i++)
     if (global_ROOT.children[i].last_move == pit_loc) {
       global_ROOT.children[i].parent = null;
@@ -101,7 +102,7 @@ function MCTS_get_children(state, father) {
     if (!MCTS_sow(temp_board, possible_moves[i]))
       top_turn = !top_turn;
     MCTS_end_game(temp_board);
-    possible_children[i] = new MCTS_Node(new State(temp_board, top_turn), father, possible_moves[i], MCTS_simulate, MCTS_get_children);
+    possible_children[i] = new MCTS_Node(new State(temp_board, top_turn), father, possible_moves[i], MCTS_simulate, MCTS_get_children, expansion_const);
     
     temp_board = state.board.slice(0);
     top_turn = state.turn;
@@ -557,6 +558,7 @@ $('#form-new-game').submit(function() {
   if (!ai_playing)
     ai = -1;
   monte_carlo_trials = $('input[name="mc-trials"]').val();
+  expansion_const = $('input[name="mc-expansion"]').val();
   
   $('#new-game-menu').animate({opacity: 0}, "slow", function() {
     $(this).css('z-index', -1);
