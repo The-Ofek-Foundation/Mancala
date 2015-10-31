@@ -10,6 +10,7 @@ var reverse_drawing = true;
 var last_capture_global, last_move_global, last_sow_global;
 var global_ROOT;
 var expansion_const = 2;
+var board_saves = [];
 
 var boardui = document.getElementById("board");
 var brush = boardui.getContext("2d");
@@ -41,7 +42,7 @@ function new_game() {
   draw_board();
   
   if (ai == top_turn_global)
-    setTimeout(play_monte_carlo_ai_move, 10);
+    setTimeout(play_monte_carlo_ai_move, 30);
 }
 
 function create_MCTS_root() {
@@ -123,6 +124,33 @@ function MCTS_simulate(State) {
   return MCTS_simulate_game(temp_board, top_turn, top_turn, possible_moves[parseInt(Math.random() * possible_moves.length)]);
 }
 
+function MCTS_promising_moves(tboard, possible_moves, top_turn) {
+  var promising_moves = [];
+  var end;
+  for (var i = 0; i < possible_moves.length; i++) {
+    end = (possible_moves[i] + tboard[possible_moves[i]]) % (pits * 2 + 2);
+    if (end === 0 || end == pits + 1)
+      promising_moves.push(possible_moves[i]);
+    else switch (capturing_rules) {
+      case "No Capturing":
+        break;
+      case "Always Capturing":
+        if (board[end] == 1)
+          promising_moves.push(possible_moves[i]);
+        break;
+      case "Opposite Occupied":
+        if (board[end] == 1 && tboard[2 * pits + 2 - end] > 0)
+          promising_moves.push(possible_moves[i]);
+        break;
+      case "Same Side and Opposite Occupied":
+        if (((end <= pits && top_turn) || (end > pits && !top_turn)) && tboard[end] == 1 && tboard[2 * pits + 2 - end] > 0)
+          promising_moves.push(possible_moves[i]);
+        break;
+    }
+  }
+  return promising_moves;
+}
+
 function MCTS_simulate_game(tboard, global_turn, top_turn, pit_loc) {
   if (!MCTS_sow(tboard, pit_loc))
     top_turn = !top_turn;
@@ -133,9 +161,13 @@ function MCTS_simulate_game(tboard, global_turn, top_turn, pit_loc) {
   var possible_moves = [];
   for (var i = 0; i < pits; i++)
     if (!MCTS_illegal_move(tboard, i + (top_turn ? 1:(2 + pits)), top_turn))
-      possible_moves[possible_moves.length] = i + (top_turn ? 1:(2 + pits));
+      possible_moves.push(i + (top_turn ? 1:(2 + pits)));
   
-  return MCTS_simulate_game(tboard, global_turn, top_turn, possible_moves[parseInt(Math.random() * possible_moves.length)]);
+  var promising_moves = MCTS_promising_moves(tboard, possible_moves, top_turn);
+  
+  possible_moves = possible_moves.concat(promising_moves);
+  
+  return MCTS_simulate_game(tboard, global_turn, top_turn, possible_moves[Math.floor(Math.random() * possible_moves.length)]);
 }
 
 function simulate_game(pit_loc, top_turn) {
@@ -235,7 +267,8 @@ function clear_board() {
 function draw_pit(pit_loc, x, y, width, height) {
   brush.beginPath();
   drawEllipse(x, y, width, height);
-  if (pit_loc == last_move_global) {
+  if (last_move_global < 0);
+  else if (pit_loc == last_move_global) {
     brush.fillStyle = "#76EE00"; // green
     brush.fill();
   }
@@ -247,7 +280,7 @@ function draw_pit(pit_loc, x, y, width, height) {
     brush.fillStyle = "#614126"; // brown
     brush.fill();
   }
-  else if ((last_sow_global > last_move_global && pit_loc > last_move_global && pit_loc < last_sow_global) || (last_sow_global < last_move_global && (pit_loc > last_move_global || pit_loc < last_sow_global))) {
+  else if (board[last_move_global] > 0 || last_sow_global == last_move_global || (last_sow_global > last_move_global && pit_loc > last_move_global && pit_loc < last_sow_global) || (last_sow_global < last_move_global && (pit_loc > last_move_global || pit_loc < last_sow_global))) {
     if ((pit_loc === 0 && !top_turn_global) || (pit_loc == pits + 1 && top_turn_global));
     else {
       brush.fillStyle = "#C3834C"; // light brown
