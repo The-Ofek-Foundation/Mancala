@@ -11,6 +11,7 @@ var last_capture_global, last_move_global, last_sow_global;
 var global_ROOT;
 var expansion_const = 2;
 var board_states, state_on;
+var ponder = false, pondering;
 
 var boardui = document.getElementById("board");
 var brush = boardui.getContext("2d");
@@ -45,6 +46,29 @@ function new_game() {
   draw_board();
   
   if (ai == top_turn_global)
+    setTimeout(play_monte_carlo_ai_move, 30);
+  
+  if (ponder)
+    start_ponder();
+}
+
+function play_move(pit_loc) {
+  
+  global_ROOT = MCTS_get_next_root(pit_loc);
+  
+  if (!sow(pit_loc))
+    top_turn_global = !top_turn_global;
+  
+  if(end_game())
+    if (ponder)
+      stop_ponder();
+  
+  state_on++;
+  save_board_state(state_on);
+  
+  draw_board();
+  
+  if (top_turn_global === ai)
     setTimeout(play_monte_carlo_ai_move, 30);
 }
 
@@ -85,6 +109,16 @@ function redo() {
   draw_board();
 }
 
+function start_ponder() {
+  pondering = setInterval(function() {
+    run_MCTS(1000);
+  }, 0);
+}
+
+function stop_ponder() {
+  clearInterval(pondering);
+}
+
 function create_MCTS_root() {
   return new MCTS_Node(new State(board, top_turn_global), null, null, MCTS_simulate, MCTS_get_children, expansion_const);
 }
@@ -109,7 +143,8 @@ function run_MCTS(times) {
 }
 
 function get_best_move_MCTS() {
-  run_MCTS(monte_carlo_trials);
+  if (global_ROOT.total_tries < monte_carlo_trials);
+  run_MCTS(monte_carlo_trials - global_ROOT.total_tries);
   var best_move, most_trials = 0;
   for (var i = 0; i < global_ROOT.children.length; i++)
     if (global_ROOT.children[i].total_tries > most_trials) {
@@ -264,27 +299,10 @@ function play_monte_carlo_ai_move() {
 //     }
     
   var best_move = get_best_move_MCTS();
-  
-  global_ROOT = MCTS_get_next_root(best_move);
-  
+    
   console.log(best_move);
   
-  var again = false;
-    
-  if(sow(best_move))
-    again = true;
-  else top_turn_global = !top_turn_global;
-  
-  end_game();
-  
-  state_on++;
-  save_board_state(state_on);
-  
-  draw_board();
-  
-  if (again) {
-    setTimeout(play_monte_carlo_ai_move, 10);
-  }
+  play_move(best_move);
 }
 
 function drawEllipse(x, y, w, h) {
@@ -393,20 +411,8 @@ $('#board').mousedown(function(e) {
   var pit_loc = get_pit_loc(e.pageX, e.pageY);
   if (illegal_move(pit_loc, top_turn_global, true))
     return;
-  if (sow(pit_loc));
-  else top_turn_global = !top_turn_global;
   
-  global_ROOT = MCTS_get_next_root(pit_loc);
-  
-  end_game();
-  
-  state_on++;
-  save_board_state(state_on);
-  
-  draw_board();
-  
-  if (ai == top_turn_global)
-    setTimeout(play_monte_carlo_ai_move, 10);
+  play_move(pit_loc);
 });
 
 function illegal_move(pit_loc, top_turn, output) {
@@ -645,6 +651,7 @@ $('#form-new-game').submit(function() {
   seeds_per_pit = parseInt($('input[name="seeds-per-pit"]').val());
   
   var ai_playing = $('input[name="ai"]').prop('checked');
+  ponder = $('input[name="ai-ponder"]').prop('checked');
   capturing_rules = $('input[name="capture-rules"]').val();
   reverse_drawing = $('input[name="reverse"]').prop('checked');
   ai = $('input[name="ai-turn"]').val() == "First" ? true:false;
