@@ -10,7 +10,7 @@ var reverse_drawing = true;
 var last_capture_global, last_move_global, last_sow_global;
 var global_ROOT;
 var expansion_const = 2;
-var board_saves = [];
+var board_states, state_on;
 
 var boardui = document.getElementById("board");
 var brush = boardui.getContext("2d");
@@ -27,7 +27,7 @@ $(document).ready(function() {
   
   new_game();
   
-  alert("Press 'n' for a new game!");
+  alert("Press 'n' for a new game, 'u' to undo and 'r' to redo!");
 });
 
 function new_game() {
@@ -38,11 +38,51 @@ function new_game() {
   board[0] = board[pits + 1] = 0;
   top_turn_global = true;
   last_sow_global = last_capture_global = last_move_global = -1;
+  board_states = [];
+  state_on = 0;
+  save_board_state(state_on);
   
   draw_board();
   
   if (ai == top_turn_global)
     setTimeout(play_monte_carlo_ai_move, 30);
+}
+
+function save_board_state(index) {
+  board_states = board_states.slice(0, index);
+  board_states[index] = new State(board.slice(0), top_turn_global);
+  board_states[index].last_capture_global = last_capture_global;
+  board_states[index].last_move_global = last_move_global;
+  board_states[index].last_sow_global = last_sow_global;
+}
+
+function load_board_state(index) {
+  board = board_states[index].board.slice(0);
+  top_turn_global = board_states[index].turn;
+  last_capture_global = board_states[index].last_capture_global;
+  last_move_global = board_states[index].last_move_global;
+  last_sow_global = board_states[index].last_sow_global;
+}
+
+function undo() {
+  if (state_on === 0) {
+    alert("No moves left to undo!");
+    return;
+  }
+  state_on--;
+  load_board_state(state_on);
+  global_ROOT = null;
+  draw_board();
+}
+
+function redo() {
+  if (state_on >= board_states.length - 1) {
+    alert("No moves left to redo!");
+    return;
+  }
+  state_on++;
+  load_board_state(state_on);
+  draw_board();
 }
 
 function create_MCTS_root() {
@@ -237,6 +277,9 @@ function play_monte_carlo_ai_move() {
   
   end_game();
   
+  state_on++;
+  save_board_state(state_on);
+  
   draw_board();
   
   if (again) {
@@ -343,6 +386,10 @@ function get_pit_loc(x, y) {
 }
 
 $('#board').mousedown(function(e) {
+  if (ai === top_turn_global) {
+    alert("It is not your turn!");
+    return;
+  }
   var pit_loc = get_pit_loc(e.pageX, e.pageY);
   if (illegal_move(pit_loc, top_turn_global, true))
     return;
@@ -353,10 +400,13 @@ $('#board').mousedown(function(e) {
   
   end_game();
   
+  state_on++;
+  save_board_state(state_on);
+  
   draw_board();
-  if (ai == top_turn_global) {
+  
+  if (ai == top_turn_global)
     setTimeout(play_monte_carlo_ai_move, 10);
-  }
 });
 
 function illegal_move(pit_loc, top_turn, output) {
@@ -567,10 +617,18 @@ function MCTS_end_game(tboard) {
 }
 
 $(document).keydown(function(e) {
+  if (e.ctrlKey)
+    return;
 //   alert(e.which);
   switch (e.which) {
     case 78: // n
       $('#new-game-menu').animate({opacity: 0.9}, "slow").css('z-index', 1);
+      break;
+    case 85: // u
+      undo();
+      break;
+    case 82: // r
+      redo();
       break;
   }
 });
