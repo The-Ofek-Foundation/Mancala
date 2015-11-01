@@ -267,7 +267,7 @@ function clear_board() {
 function draw_pit(pit_loc, x, y, width, height) {
   brush.beginPath();
   drawEllipse(x, y, width, height);
-  if (last_move_global < 0);
+  if (last_move_global < 0 || last_sow_global < 0);
   else if (pit_loc == last_move_global) {
     brush.fillStyle = "#76EE00"; // green
     brush.fill();
@@ -523,6 +523,8 @@ function end_game() {
     board[i] = 0;
   }
   board[0] += captures;
+  
+  last_sow_global = -1;
   
   return true;
 }
