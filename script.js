@@ -36,7 +36,6 @@ $(document).ready(function() {
   $('#new-game-btn').css('font-size', docheight / 10);
   $('#new-game-btn').css('top', "-=" + ($('#new-game-btn').height() / 2) + "px");
   $('#new-game-btn').css('left', "-=" + ($('#new-game-btn').outerWidth() / 2) + "px");
-//   alert("Press 'n' for a new game, 'u' to undo and 'r' to redo!");
 });
 
 function new_game() {
@@ -207,11 +206,25 @@ function MCTS_simulate(State) {
   return MCTS_simulate_game(temp_board, top_turn, top_turn, possible_moves[parseInt(Math.random() * possible_moves.length)]);
 }
 
+function get_end(pit_loc, seed_num, top_turn) {
+  var end;
+  if (top_turn) {
+    end = (pit_loc + seed_num) % (2 * pits + 1);
+    if (end === 0)
+      return 2 * pits + 1;
+    return end;
+  }
+  end = ((pit_loc + seed_num - pits - 1) % (2 * pits + 1) + pits + 1) % (2*pits + 2);
+  if (end == pits + 1)
+    return pits;
+  return end;
+}
+
 function MCTS_promising_moves(tboard, possible_moves, top_turn) {
   var promising_moves = [];
   var end;
   for (var i = 0; i < possible_moves.length; i++) {
-    end = (possible_moves[i] + tboard[possible_moves[i]]) % (pits * 2 + 2);
+    end = get_end(possible_moves[i], tboard[possible_moves[i]], top_turn);
     if (end === 0 || end == pits + 1)
       promising_moves.push(possible_moves[i]);
     else switch (capturing_rules) {
@@ -248,7 +261,7 @@ function MCTS_simulate_game(tboard, global_turn, top_turn, pit_loc) {
   
   var promising_moves = MCTS_promising_moves(tboard, possible_moves, top_turn);
   
-  possible_moves = possible_moves.concat(promising_moves);
+  possible_moves = possible_moves.concat(promising_moves).concat(promising_moves);
   
   return MCTS_simulate_game(tboard, global_turn, top_turn, possible_moves[Math.floor(Math.random() * possible_moves.length)]);
 }
