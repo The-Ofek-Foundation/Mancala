@@ -28,7 +28,15 @@ $(document).ready(function() {
   
   new_game();
   
-  alert("Press 'n' for a new game, 'u' to undo and 'r' to redo!");
+  
+  $('#undo-btn').css('font-size', docheight / 10);
+  $('#undo-btn').css('top', "-=" + ($('#undo-btn').height() / 2) + "px");
+  $('#redo-btn').css('font-size', docheight / 10);
+  $('#redo-btn').css('top', "-=" + ($('#redo-btn').height() / 2) + "px");
+  $('#new-game-btn').css('font-size', docheight / 10);
+  $('#new-game-btn').css('top', "-=" + ($('#new-game-btn').height() / 2) + "px");
+  $('#new-game-btn').css('left', "-=" + ($('#new-game-btn').outerWidth() / 2) + "px");
+//   alert("Press 'n' for a new game, 'u' to undo and 'r' to redo!");
 });
 
 function new_game() {
@@ -628,7 +636,7 @@ $(document).keydown(function(e) {
 //   alert(e.which);
   switch (e.which) {
     case 78: // n
-      $('#new-game-menu').animate({opacity: 0.9}, "slow").css('z-index', 1);
+      show_new_game_menu();
       break;
     case 85: // u
       undo();
@@ -638,6 +646,10 @@ $(document).keydown(function(e) {
       break;
   }
 });
+
+function show_new_game_menu() {
+  $('#new-game-menu').animate({opacity: 0.9}, "slow").css('z-index', 1);
+}
 
 var dont_submit;
 
