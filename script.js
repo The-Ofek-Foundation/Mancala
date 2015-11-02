@@ -9,9 +9,10 @@ var capturing_rules = "Same Side and Opposite Occupied";
 var reverse_drawing = true;
 var last_capture_global, last_move_global, last_sow_global;
 var global_ROOT;
-var expansion_const = 2;
+var expansion_const = 2.5;
 var board_states, state_on;
 var ponder = false, pondering;
+var last_rec;
 
 var boardui = document.getElementById("board");
 var brush = boardui.getContext("2d");
@@ -47,6 +48,7 @@ function new_game() {
   board_states = [];
   state_on = 0;
   save_board_state(state_on);
+  last_rec = -1;
   
   draw_board();
   
@@ -60,6 +62,8 @@ function new_game() {
 function play_move(pit_loc) {
   
   global_ROOT = MCTS_get_next_root(pit_loc);
+  
+  last_rec = get_best_move_MCTS(false);
   
   if (!sow(pit_loc))
     top_turn_global = !top_turn_global;
@@ -117,6 +121,10 @@ function redo() {
 function start_ponder() {
   pondering = setInterval(function() {
     run_MCTS(1000);
+    if (last_rec != get_best_move_MCTS(false)) {
+      last_rec = get_best_move_MCTS(false);
+      draw_board();
+    }
   }, 0);
 }
 
@@ -147,9 +155,11 @@ function run_MCTS(times) {
   return global_ROOT;
 }
 
-function get_best_move_MCTS() {
-  if (global_ROOT.total_tries < monte_carlo_trials);
-  run_MCTS(monte_carlo_trials - global_ROOT.total_tries);
+function get_best_move_MCTS(simulate) {
+  if (!global_ROOT)
+    return -1;
+  if (simulate && global_ROOT.total_tries < monte_carlo_trials)
+    run_MCTS(monte_carlo_trials - global_ROOT.total_tries);
   var best_move, most_trials = 0;
   for (var i = 0; i < global_ROOT.children.length; i++)
     if (global_ROOT.children[i].total_tries > most_trials) {
@@ -317,7 +327,7 @@ function play_monte_carlo_ai_move() {
 //       best_move = i + (top_turn_global ? 1:(2 + pits));
 //     }
     
-  var best_move = get_best_move_MCTS();
+  var best_move = get_best_move_MCTS(true);
     
   console.log(best_move);
   
@@ -367,7 +377,10 @@ function draw_pit(pit_loc, x, y, width, height) {
       brush.fill();
     }
   }
-  brush.strokeStyle = "black";
+  if (pit_loc == last_rec)
+    brush.strokeStyle = "blue";
+  else brush.strokeStyle = "black";
+  brush.lineWidth = 2;
   brush.stroke();
   brush.fillStyle = "black";
 }
