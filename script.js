@@ -29,13 +29,11 @@ $(document).ready(function() {
   new_game();
   
   
-  $('#undo-btn').css('font-size', docheight / 10);
-  $('#undo-btn').css('top', "-=" + ($('#undo-btn').height() / 2) + "px");
-  $('#redo-btn').css('font-size', docheight / 10);
-  $('#redo-btn').css('top', "-=" + ($('#redo-btn').height() / 2) + "px");
-  $('#new-game-btn').css('font-size', docheight / 10);
-  $('#new-game-btn').css('top', "-=" + ($('#new-game-btn').height() / 2) + "px");
-  $('#new-game-btn').css('left', "-=" + ($('#new-game-btn').outerWidth() / 2) + "px");
+  $('.center-btn').css('font-size', docheight / 10);
+  $('#undo-btn').css('top', (docheight- $('#undo-btn').height()) / 2);
+  $('#redo-btn').css('top', (docheight - $('#redo-btn').height()) / 2);
+  $('#new-game-btn').css('top', (docheight - $('#new-game-btn').height()) / 2);
+  $('#new-game-btn').css('left', (docwidth - $('#new-game-btn').outerWidth()) / 2);
 });
 
 function new_game() {
