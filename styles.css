@@ -30,3 +30,20 @@
 input {
   font-size: 20px;
 }
+.center-btn {
+  position: absolute;
+  border-radius: 15px;
+  top: 50%;
+}
+.center-btn#undo-btn {
+  background-color: red;
+  left: 20%;
+}
+.center-btn#redo-btn {
+  background-color: green;
+  right: 20%;
+}
+.center-btn#new-game-btn {
+  background-color: blue;
+  left: 50%;
+}
