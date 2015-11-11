@@ -3,16 +3,19 @@ var pits = 6;
 var seeds_per_pit = 4;
 var board, board_copy;
 var top_turn_global;
-var monte_carlo_trials = 100000;
+var monte_carlo_trials = 200000;
 var ai = -1;
 var capturing_rules = "Same Side and Opposite Occupied";
 var reverse_drawing = true;
 var last_capture_global, last_move_global, last_sow_global;
 var global_ROOT;
-var expansion_const = 2.5;
+var expansion_const = 3.5;
 var board_states, state_on;
 var ponder = false, pondering;
 var last_rec;
+var certainty_threshold = 0.5;
+var monte_carlo_aide = false;
+var MCTS_weights = false;
 
 var boardui = document.getElementById("board");
 var brush = boardui.getContext("2d");
@@ -27,18 +30,20 @@ $(document).ready(function() {
   boardui.setAttribute('width', docwidth);
   boardui.setAttribute('height', docheight);
   
-  new_game();
+//   console.log("cause 1");
   
+  new_game();
   
   $('.center-btn').css('font-size', docheight / 10);
   $('#undo-btn').css('top', (docheight- $('#undo-btn').height()) / 2);
   $('#redo-btn').css('top', (docheight - $('#redo-btn').height()) / 2);
   $('#new-game-btn').css('top', (docheight - $('#new-game-btn').height()) / 2);
   $('#new-game-btn').css('left', (docwidth - $('#new-game-btn').outerWidth()) / 2);
+  $('#new-game-menu').css('top', (docheight - $('#new-game-menu').outerHeight()) / 2);
+  $('#new-game-menu').css('left', (docwidth - $('#new-game-menu').outerWidth()) / 2);
 });
 
 function new_game() {
-  global_ROOT = null;
   board = new Array(pits * 2 + 2);
   for (var i = 0; i < pits * 2 + 2; i++)
     board[i] = seeds_per_pit;
@@ -48,23 +53,22 @@ function new_game() {
   board_states = [];
   state_on = 0;
   save_board_state(state_on);
-  last_rec = -1;
+  last_rec = null;
+  global_ROOT = create_MCTS_root();
   
   draw_board();
   
-  if (ai == top_turn_global)
+//   console.log("new game");
+  if (ai == "First" || ai == "Both")
     setTimeout(play_monte_carlo_ai_move, 30);
   
+  stop_ponder();
   if (ponder)
     start_ponder();
 }
 
 function play_move(pit_loc) {
-  
-  global_ROOT = MCTS_get_next_root(pit_loc);
-  
-  last_rec = get_best_move_MCTS(false);
-  
+    
   if (!sow(pit_loc))
     top_turn_global = !top_turn_global;
   
@@ -75,9 +79,14 @@ function play_move(pit_loc) {
   state_on++;
   save_board_state(state_on);
   
+  global_ROOT = MCTS_get_next_root(pit_loc);
+  if (global_ROOT)
+    global_ROOT.parent = null;
+  else global_ROOT = create_MCTS_root();
+  
   draw_board();
   
-  if (top_turn_global === ai)
+  if (ai == "Both" || (ai == "First" && top_turn_global) || (ai == "Second" && !top_turn_global))
     setTimeout(play_monte_carlo_ai_move, 30);
 }
 
@@ -120,12 +129,14 @@ function redo() {
 
 function start_ponder() {
   pondering = setInterval(function() {
-    run_MCTS(1000);
-    if (last_rec != get_best_move_MCTS(false)) {
-      last_rec = get_best_move_MCTS(false);
+    if (!global_ROOT)
+      global_ROOT = create_MCTS_root();
+    for (var i = 0; i < monte_carlo_trials / 100; i++)
+      global_ROOT.choose_child();
+    last_rec = most_tried_child(global_ROOT, null);
+    if (Math.random() > 0.9)
       draw_board();
-    }
-  }, 0);
+  }, 1);
 }
 
 function stop_ponder() {
@@ -141,32 +152,100 @@ function MCTS_get_next_root(pit_loc) {
     return null;
   for (var i = 0; i < global_ROOT.children.length; i++)
     if (global_ROOT.children[i].last_move == pit_loc) {
-      global_ROOT.children[i].parent = null;
       return global_ROOT.children[i];
     }
   return null;
 }
 
-function run_MCTS(times) {
+function run_MCTS(times, threshold, callback) {
   if (!global_ROOT)
     global_ROOT = create_MCTS_root();
-  for (var i = 0; i < times; i++)
-    global_ROOT.choose_child();
-  return global_ROOT;
+  run_MCTS_recursive(times, threshold, 10, 10, callback);
 }
 
-function get_best_move_MCTS(simulate) {
-  if (!global_ROOT)
-    return -1;
-  if (simulate && global_ROOT.total_tries < monte_carlo_trials)
-    run_MCTS(monte_carlo_trials - global_ROOT.total_tries);
-  var best_move, most_trials = 0;
-  for (var i = 0; i < global_ROOT.children.length; i++)
-    if (global_ROOT.children[i].total_tries > most_trials) {
-      most_trials = global_ROOT.children[i].total_tries;
-      best_move = global_ROOT.children[i].last_move;
+function run_MCTS_recursive(times, threshold, time_on, total_times, callback) {
+  for (var a = 0; a < times / total_times; a++)
+    global_ROOT.choose_child();
+//   if (last_rec != most_tried_child(global_ROOT, null)) {
+    last_rec = most_tried_child(global_ROOT, null);
+    draw_board();
+//   }
+  if (threshold > 0) {
+    if (global_ROOT.children.length < 2) {
+      callback(global_ROOT);
+      return;
     }
-  return best_move;
+    var best_child = most_tried_child(global_ROOT);
+    var second_best = most_tried_child(global_ROOT, best_child);
+    console.log(second_best.total_tries / best_child.total_tries, threshold);
+    if (second_best.total_tries / best_child.total_tries < threshold) {
+      callback(global_ROOT);
+      return;
+    }
+  }
+  if (time_on <= 1)
+    callback(global_ROOT);
+  else setTimeout(function() {
+    run_MCTS_recursive(times, threshold, time_on - 1, total_times, callback);
+  }, 30);
+}
+
+function most_tried_child(root, exclude) {
+  var most_trials = 0, child = null;
+  if (!root.children)
+    return null;
+  if (root.children.length == 1)
+    return root.children[0];
+  for (var i = 0; i < root.children.length; i++)
+    if (root.children[i] != exclude && root.children[i].total_tries > most_trials) {
+      most_trials = root.children[i].total_tries;
+      child = root.children[i];
+    }
+  return child;
+}
+
+function least_tried_child(root) {
+  var least_trials = root.total_tries + 1, child = null;
+  if (!root.children)
+    return null;
+  for (var i = 0; i < root.children.length; i++)
+    if (root.children[i].total_tries < least_trials) {
+      least_trials = root.children[i].total_tries;
+      child = root.children[i];
+    }
+  return child;
+}
+
+function get_best_move_MCTS(callback) {
+  var best_child;
+  if (callback && global_ROOT.total_tries < monte_carlo_trials) {
+    run_MCTS(monte_carlo_trials - global_ROOT.total_tries, certainty_threshold, function() {
+//       console.log("finish");
+      best_child = most_tried_child(global_ROOT, null);
+      if (!best_child)
+        callback(-1);
+      else callback(best_child.last_move);
+    });
+  }
+  else if (callback) {
+    best_child = most_tried_child(global_ROOT, null);
+    if (!best_child)
+      callback(-1);
+    else callback(best_child.last_move);
+  }
+  else {
+    best_child = most_tried_child(global_ROOT, null);
+    if (!best_child)
+      return -1;
+    return best_child.last_move;
+  }
+}
+
+function get_MCTS_depth_range() {
+  var root, range = new Array(2);
+  for (range[0] = 0, root = global_ROOT; root.children; range[0]++, root = least_tried_child(root));
+  for (range[1] = 0, root = global_ROOT; root.children; range[1]++, root = most_tried_child(root));
+  return range;
 }
 
 function analyze_position(top_turn) {
@@ -318,20 +397,10 @@ function monte_carlo_analysis() {
 }
 
 function play_monte_carlo_ai_move() {
-//   var analysis = monte_carlo_analysis();
-//   var best_move = -1;
-//   var best_score = -1;
-//   for (var i = 0; i < analysis.length; i++)
-//     if (analysis[i] > best_score) {
-//       best_score = analysis[i];
-//       best_move = i + (top_turn_global ? 1:(2 + pits));
-//     }
-    
-  var best_move = get_best_move_MCTS(true);
-    
+ get_best_move_MCTS(function(best_move) {
   console.log(best_move);
-  
   play_move(best_move);
+ });
 }
 
 function drawEllipse(x, y, w, h) {
@@ -354,6 +423,13 @@ function clear_board() {
   brush.clearRect(0, 0, docwidth, docheight);
 }
 
+function get_pit_color(ratio) {
+  var r, g = 0, b = 0;
+  r = Math.floor(ratio * 255);
+  
+  return "rgb(" + r + "," + g + "," + b + ")";
+}
+
 function draw_pit(pit_loc, x, y, width, height) {
   brush.beginPath();
   drawEllipse(x, y, width, height);
@@ -367,7 +443,7 @@ function draw_pit(pit_loc, x, y, width, height) {
     brush.fill();
   }
   else if (pit_loc == last_sow_global) {
-    brush.fillStyle = "#614126"; // brown
+    brush.fillStyle = "#815532"; // brown
     brush.fill();
   }
   else if (board[last_move_global] > 0 || last_sow_global == last_move_global || (last_sow_global > last_move_global && pit_loc > last_move_global && pit_loc < last_sow_global) || (last_sow_global < last_move_global && (pit_loc > last_move_global || pit_loc < last_sow_global))) {
@@ -377,12 +453,19 @@ function draw_pit(pit_loc, x, y, width, height) {
       brush.fill();
     }
   }
-  if (pit_loc == last_rec)
+  if (last_rec && monte_carlo_aide && pit_loc == last_rec.last_move)
     brush.strokeStyle = "blue";
   else brush.strokeStyle = "black";
-  brush.lineWidth = 2;
+  if (MCTS_weights && MCTS_get_next_root(pit_loc)) {
+    var tries = MCTS_get_next_root(pit_loc).total_tries;
+    var ratio = tries / global_ROOT.total_tries;
+    brush.lineWidth = ratio * 2 * pits;
+//     brush.strokeStyle = get_pit_color(ratio);
+  }
+  else  brush.lineWidth = 2;
   brush.stroke();
   brush.fillStyle = "black";
+  brush.shadowBlur = 0;
 }
 
 function draw_board() {
@@ -398,7 +481,7 @@ function draw_board() {
   
   // large ovals
   
-  brush.stroketyle = "black";
+  brush.strokeStyle = "black";
   
   brush.beginPath();
   draw_pit(0, 1 / 4 * oval_width, (docheight - large_oval_height) / 2, oval_width, large_oval_height);
@@ -688,16 +771,19 @@ $('#form-new-game').submit(function() {
   
   var ai_playing = $('input[name="ai"]').prop('checked');
   ponder = $('input[name="ai-ponder"]').prop('checked');
+  MCTS_weights = $('input[name="mc-weight"]').prop('checked');
   capturing_rules = $('input[name="capture-rules"]').val();
   reverse_drawing = $('input[name="reverse"]').prop('checked');
-  ai = $('input[name="ai-turn"]').val() == "First" ? true:false;
+  ai = $('input[name="ai-turn"]').val();
   if (!ai_playing)
     ai = -1;
   monte_carlo_trials = $('input[name="mc-trials"]').val();
   expansion_const = $('input[name="mc-expansion"]').val();
+  certainty_threshold = 1 - $('input[name="mc-certainty"]').val() / 100;
   
   $('#new-game-menu').animate({opacity: 0}, "slow", function() {
     $(this).css('z-index', -1);
+//     console.log("cause 2");
     new_game();
   });
   
@@ -705,6 +791,7 @@ $('#form-new-game').submit(function() {
 });
 
 $('#btn-new-game-cancel').click(function() {
+  console.log("click");
   dont_submit = true;
   $('#new-game-menu').animate({opacity: 0}, "slow", function() {
     $(this).css('z-index', -1);
