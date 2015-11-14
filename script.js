@@ -72,7 +72,7 @@ function play_move(pit_loc) {
   if (!sow(pit_loc))
     top_turn_global = !top_turn_global;
   
-  if(end_game())
+  if(end_game(top_turn_global))
     if (ponder)
       stop_ponder();
   
@@ -271,7 +271,7 @@ function MCTS_get_children(state, father) {
   for (i = 0; i < possible_children.length; i++) {
     if (!MCTS_sow(temp_board, possible_moves[i]))
       top_turn = !top_turn;
-    MCTS_end_game(temp_board);
+    MCTS_end_game(temp_board, top_turn);
     possible_children[i] = new MCTS_Node(new State(temp_board, top_turn), father, possible_moves[i], MCTS_simulate, MCTS_get_children, expansion_const);
     
     temp_board = state.board.slice(0);
@@ -338,7 +338,7 @@ function MCTS_simulate_game(tboard, global_turn, top_turn, pit_loc) {
   if (!MCTS_sow(tboard, pit_loc))
     top_turn = !top_turn;
   
-  if (MCTS_end_game(tboard) || tboard[0] > pits * seeds_per_pit || tboard[pits + 1] > pits * seeds_per_pit)
+  if (MCTS_end_game(tboard, top_turn) || tboard[0] > pits * seeds_per_pit || tboard[pits + 1] > pits * seeds_per_pit)
     return MCTS_analyze_position(tboard, global_turn);
     
   var possible_moves = [];
@@ -357,7 +357,7 @@ function simulate_game(pit_loc, top_turn) {
   if (!sow(pit_loc))
     top_turn = !top_turn;
   
-  if (end_game())
+  if (end_game(top_turn))
     return analyze_position(top_turn_global);
   
   var possible_moves = [];
@@ -661,23 +661,12 @@ function MCTS_sow(tboard, pit_loc) {
   return curr_pit === 0 || curr_pit == pits + 1;
 }
 
-function end_game() {
-  var sides = 0;
+function end_game(top_turn) {
   var i;
   
   for (i = 1; i <= pits; i++)
-    if (board[i] > 0) {
-      sides++;
-      break;
-    }
-  for (i = pits + 2; i < board.length; i++)
-    if (board[i] > 0) {
-      sides++;
-      break;
-    }
-  
-  if (sides == 2)
-    return false;
+    if ((!top_turn && board[i+pits+1] > 0) || (top_turn && board[i] > 0))
+      return false;
   
   var captures = 0;
   
@@ -700,23 +689,12 @@ function end_game() {
   return true;
 }
 
-function MCTS_end_game(tboard) {
-  var sides = 0;
+function MCTS_end_game(tboard, top_turn) {
   var i;
   
   for (i = 1; i <= pits; i++)
-    if (tboard[i] > 0) {
-      sides++;
-      break;
-    }
-  for (i = pits + 2; i < tboard.length; i++)
-    if (tboard[i] > 0) {
-      sides++;
-      break;
-    }
-  
-  if (sides == 2)
-    return false;
+    if ((!top_turn && tboard[i+pits+1] > 0) || (top_turn && tboard[i] > 0))
+      return false;
   
   var captures = 0;
   
