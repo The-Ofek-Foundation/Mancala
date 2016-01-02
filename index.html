@@ -2,14 +2,22 @@
 <html>
 <head>
   <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
-  <script src="http://the-ofek-foundation.github.io/MCTS.js"></script>
   <meta name="description" content="Ofek's Kalahman">
   <meta charset="utf-8">
   <title>Ofek's Kalahman</title>
+  <script src="https://apis.google.com/js/platform.js" async defer></script>
   <link rel="stylesheet" type="text/css" href="styles.css">
 </head>
 <body>
+  <div class="header">
+    Back to <a href="/">The Ofek Foundation</a>
+  </div>
   <canvas id="board"></canvas>
+  <div class="footer">
+    <div id="anal">Analysis:</div>
+    <g:plusone size="tall" href="http://the-ofek-foundation.github.io/Mancala/" data-align="right" data-annotation="inline"></g:plusone>
+    <div id="num-trials">Trials:</div>
+  </div>
   <button class="center-btn" id="undo-btn" onclick="undo()">Undo</button>
   <button class="center-btn" id="redo-btn" onclick="redo()">Redo</button>
   <button class="center-btn" id="new-game-btn" onclick="show_new_game_menu()">New Game</button>
@@ -51,19 +59,19 @@
       <option value="Both"></option>
     </datalist>
     <br />
-    Monte Carlo Trials (10,000 - 500,000):
-    <input type="range" name="mc-trials" id="mc-trials" min="10000" max="400000" step="10000" value="200000">
+    Monte Carlo Trials (10,000 - 1,000,000):
+    <input type="range" name="mc-trials" id="mc-trials" min="10000" max="1000000" step="10000" value="200000">
     <br />
     Monte Carlo Expansion Constant (0 - 10):
     <input type="range" name="mc-expansion" id="mc-expansion" min="0" max="10" step="0.1" value="3.5">
     <br />
     Monte Carlo Certainty Threshold (0% - 100%):
-    <input type="number" name="mc-certainty" min="0" max="100" step="1" value="75" required>
+    <input type="number" name="mc-certainty" min="0" max="100" step="1" value="50" required>
     <br />
     <input type="submit" value="New Game">
     <button id="btn-new-game-cancel">Cancel</button>
   </form>
 </div>
 </body>
-<script src="script.js"> </script>
+<script src="script.js"></script>
 </html>
