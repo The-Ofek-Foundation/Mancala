@@ -23,8 +23,8 @@ var brush = boardui.getContext("2d");
 
 $(document).ready(function() {
   
-  docwidth = $(document).outerWidth(true);
-  docheight = $(document).outerHeight(true);
+  docwidth = $(window).outerWidth(true);
+  docheight = $(window).outerHeight(true);
   
   $('#board').width(docwidth).height(docheight);
   
@@ -40,6 +40,23 @@ $(document).ready(function() {
   $('#new-game-btn').css('left', (docwidth - $('#new-game-btn').outerWidth()) / 2);
   $('#new-game-menu').css('top', (docheight - $('#new-game-menu').outerHeight()) / 2);
   $('#new-game-menu').css('left', (docwidth - $('#new-game-menu').outerWidth()) / 2);
+});
+
+$(window).resize(function() {
+  docwidth = $(window).outerWidth(true);
+  docheight = $(window).outerHeight(true);
+  
+  $('#board').width(docwidth).height(docheight);
+  
+  $('.center-btn').css('font-size', docheight / 10);
+  $('#undo-btn').css('top', (docheight- $('#undo-btn').height()) / 2);
+  $('#redo-btn').css('top', (docheight - $('#redo-btn').height()) / 2);
+  $('#new-game-btn').css('top', (docheight - $('#new-game-btn').height()) / 2);
+  $('#new-game-btn').css('left', (docwidth - $('#new-game-btn').outerWidth()) / 2);
+  $('#new-game-menu').css('top', (docheight - $('#new-game-menu').outerHeight()) / 2);
+  $('#new-game-menu').css('left', (docwidth - $('#new-game-menu').outerWidth()) / 2);
+  
+  draw_board();
 });
 
 function new_game() {
@@ -509,7 +526,7 @@ function draw_board() {
   
   clear_board();
   
-  var large_oval_height = docheight - 2 * oval_height;
+  var large_oval_height = parseInt(boardui.getAttribute("height")) - 2 * oval_height;
   var top_text = oval_width / 7;
   brush.font = (oval_width / 3) + "px Arial";
   brush.textAlign = "center";
@@ -519,11 +536,11 @@ function draw_board() {
   brush.strokeStyle = "black";
   
   brush.beginPath();
-  draw_pit(0, 1 / 4 * oval_width, (docheight - large_oval_height) / 2, oval_width, large_oval_height);
-  brush.fillText(board[0], 3 / 4 * oval_width, docheight / 2 + top_text);
+  draw_pit(0, 1 / 4 * oval_width, (parseInt(boardui.getAttribute("height")) - large_oval_height) / 2, oval_width, large_oval_height);
+  brush.fillText(board[0], 3 / 4 * oval_width, parseInt(boardui.getAttribute("height")) / 2 + top_text);
 
-  draw_pit(pits + 1, docwidth - 5 / 4 * oval_width, (docheight - large_oval_height) / 2, oval_width, large_oval_height);
-  brush.fillText(board[pits + 1], docwidth - 3 / 4 * oval_width, docheight / 2 + top_text);
+  draw_pit(pits + 1, parseInt(boardui.getAttribute("width")) - 5 / 4 * oval_width, (parseInt(boardui.getAttribute("height")) - large_oval_height) / 2, oval_width, large_oval_height);
+  brush.fillText(board[pits + 1], parseInt(boardui.getAttribute("width")) - 3 / 4 * oval_width, parseInt(boardui.getAttribute("height")) / 2 + top_text);
   brush.stroke();
   
   // small ovals
@@ -538,8 +555,8 @@ function draw_board() {
 }
 
 function get_pit_loc(x, y) {
-  var oval_width = docwidth / (pits + 3);
-  var oval_height = docheight / 5;
+  var oval_width = parseInt(boardui.getAttribute("width")) / (pits + 3);
+  var oval_height = parseInt(boardui.getAttribute("height")) / 5;
   
   x = Math.floor((x - oval_width * 1.5) / oval_width);
   y = Math.floor((y - oval_height) / oval_height);
