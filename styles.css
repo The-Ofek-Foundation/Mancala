@@ -24,6 +24,44 @@
   font-size: 30px;
   opacity: 0;
 }
+.footer {
+  position: fixed;
+  display: inline;
+  bottom: 0px;
+  font-weight: bold;
+  width: 100%;
+  text-align: center;
+  margin: 0px;
+  z-index: 5;
+}
+.footer button {
+  color: white;
+  border-radius: 5px;
+  margin: auto 30px;
+}
+.footer button#new-game {
+  background-color: blue;
+}
+.footer button#back {
+  background-color: red;
+}
+.footer button#stop-ai {
+  background-color: purple;
+}
+.footer button#start-ai {
+  background-color: green;
+}
+.footer #anal {
+  left: 0px;
+  margin: auto 30px;
+  position: absolute;
+}
+.footer #num-trials {
+  right: 0px;
+  margin: auto 30px;
+  position: absolute;
+  bottom: 0px;
+}
 input {
   font-size: 20px;
 }
@@ -53,7 +91,7 @@ input {
   border-bottom: 1px solid black;
   border-left: 1px solid black;
   border-bottom-left-radius: 15px;
-  padding-left:10px;
+  padding-left: 10px;
   padding-bottom: 7px;
   background-color: rgba(255, 255, 255, 0.6);
 }
