@@ -16,6 +16,7 @@ var last_rec;
 var certainty_threshold = 0.5;
 var monte_carlo_aide = false;
 var MCTS_weights = false;
+var max_trials = 1500000; // prevents overload (occurs around 2.3 million)
 
 var boardui = document.getElementById("board");
 var brush = boardui.getContext("2d");
@@ -29,9 +30,7 @@ $(document).ready(function() {
   
   boardui.setAttribute('width', docwidth);
   boardui.setAttribute('height', docheight);
-  
-//   console.log("cause 1");
-  
+    
   new_game();
   
   $('.center-btn').css('font-size', docheight / 10);
@@ -56,9 +55,11 @@ function new_game() {
   last_rec = null;
   global_ROOT = create_MCTS_root();
   
+  oval_width = docwidth / (pits + 3);
+  oval_height = docheight / 5;
   draw_board();
+  adjust_buttons();
   
-//   console.log("new game");
   if (ai == "First" || ai == "Both")
     setTimeout(play_monte_carlo_ai_move, 30);
   
@@ -83,6 +84,8 @@ function play_move(pit_loc) {
   if (global_ROOT)
     global_ROOT.parent = null;
   else global_ROOT = create_MCTS_root();
+  
+  update_analysis();
   
   draw_board();
   
@@ -131,12 +134,28 @@ function start_ponder() {
   pondering = setInterval(function() {
     if (!global_ROOT)
       global_ROOT = create_MCTS_root();
-    for (var i = 0; i < monte_carlo_trials / 100; i++)
-      global_ROOT.choose_child();
+    if (global_ROOT.total_tries < max_trials)
+      for (var i = 0; i < monte_carlo_trials / 50; i++)
+        global_ROOT.choose_child();
     last_rec = most_tried_child(global_ROOT, null);
-    if (Math.random() > 0.9)
-      draw_board();
+    update_analysis();
+    if (MCTS_weights && Math.random() > 0.9)
+      draw_board();      
   }, 1);
+}
+
+function adjust_buttons() {
+  $('.footer button').css('font-size', oval_height / 4);
+  $('.footer').css("height", oval_height / 2 + "px");
+//   $('.footer').css('margin-bottom', oval_height / 2 - $('#anal').outerHeight(false));
+  $('.footer #anal').css('line-height', oval_height / 2 + "px");
+  $('.footer #num-trials').css('line-height', oval_height / 2 + "px");
+}
+
+function update_analysis() {
+  var range = get_MCTS_depth_range();
+  $('#anal').text("Analysis: Best-" + range[1] +" Worst-" + range[0] + " Result-" + range[2]);
+  $('#num-trials').text("Trials: " + global_ROOT.total_tries);
 }
 
 function stop_ponder() {
@@ -144,7 +163,7 @@ function stop_ponder() {
 }
 
 function create_MCTS_root() {
-  return new MCTS_Node(new State(board, top_turn_global), null, null, MCTS_simulate, MCTS_get_children, expansion_const);
+  return new MCTS_Node(new State(board, top_turn_global), null, null);
 }
 
 function MCTS_get_next_root(pit_loc) {
@@ -168,17 +187,18 @@ function run_MCTS_recursive(times, threshold, time_on, total_times, callback) {
     global_ROOT.choose_child();
 //   if (last_rec != most_tried_child(global_ROOT, null)) {
     last_rec = most_tried_child(global_ROOT, null);
-    draw_board();
+    update_analysis();
+    if (MCTS_weights)
+      draw_board();
 //   }
   if (threshold > 0) {
     if (global_ROOT.children.length < 2) {
       callback(global_ROOT);
       return;
     }
-    var best_child = most_tried_child(global_ROOT);
-    var second_best = most_tried_child(global_ROOT, best_child);
-    console.log(second_best.total_tries / best_child.total_tries, threshold);
-    if (second_best.total_tries / best_child.total_tries < threshold) {
+    var cert = get_certainty(global_ROOT);
+    console.log(cert, threshold);
+    if (cert < threshold) {
       callback(global_ROOT);
       return;
     }
@@ -188,6 +208,13 @@ function run_MCTS_recursive(times, threshold, time_on, total_times, callback) {
   else setTimeout(function() {
     run_MCTS_recursive(times, threshold, time_on - 1, total_times, callback);
   }, 30);
+}
+
+function get_certainty(root) {
+  var best_child = most_tried_child(root, null);
+  var ratio = most_tried_child(root, best_child).total_tries / best_child.total_tries;
+  var ratio_wins = best_child.hits < best_child.misses ? (best_child.hits / best_child.misses * 2):(best_child.misses / best_child.hits * 3);
+  return ratio > ratio_wins ? ratio_wins:ratio;
 }
 
 function most_tried_child(root, exclude) {
@@ -242,9 +269,17 @@ function get_best_move_MCTS(callback) {
 }
 
 function get_MCTS_depth_range() {
-  var root, range = new Array(2);
-  for (range[0] = 0, root = global_ROOT; root.children; range[0]++, root = least_tried_child(root));
-  for (range[1] = 0, root = global_ROOT; root.children; range[1]++, root = most_tried_child(root));
+  var root, range = new Array(3);
+  for (range[0] = -1, root = global_ROOT; root && root.children; range[0]++, root = least_tried_child(root));
+  for (range[1] = -1, root = global_ROOT; root && root.children; range[1]++, root = most_tried_child(root));
+  root = global_ROOT;
+  if (root.total_tries > (root.hits + root.misses) * 2)
+    range[2] = "Tie";
+  else if ((root.hits > root.misses) == top_turn_global)
+    range[2] = "First";
+  else if ((root.hits < root.misses) == top_turn_global)
+    range[2] = "Second";
+  else range[2] = "Tie";
   return range;
 }
 
@@ -272,7 +307,7 @@ function MCTS_get_children(state, father) {
     if (!MCTS_sow(temp_board, possible_moves[i]))
       top_turn = !top_turn;
     MCTS_end_game(temp_board, top_turn);
-    possible_children[i] = new MCTS_Node(new State(temp_board, top_turn), father, possible_moves[i], MCTS_simulate, MCTS_get_children, expansion_const);
+    possible_children[i] = new MCTS_Node(new State(temp_board, top_turn), father, possible_moves[i]);
     
     temp_board = state.board.slice(0);
     top_turn = state.turn;
@@ -468,12 +503,12 @@ function draw_pit(pit_loc, x, y, width, height) {
   brush.shadowBlur = 0;
 }
 
+var oval_width, oval_height;
+
 function draw_board() {
   
   clear_board();
   
-  var oval_width = docwidth / (pits + 3);
-  var oval_height = docheight / 5;
   var large_oval_height = docheight - 2 * oval_height;
   var top_text = oval_width / 7;
   brush.font = (oval_width / 3) + "px Arial";
@@ -718,7 +753,6 @@ function MCTS_end_game(tboard, top_turn) {
 $(document).keydown(function(e) {
   if (e.ctrlKey)
     return;
-//   alert(e.which);
   switch (e.which) {
     case 78: // n
       show_new_game_menu();
@@ -733,7 +767,7 @@ $(document).keydown(function(e) {
 });
 
 function show_new_game_menu() {
-  $('#new-game-menu').animate({opacity: 0.9}, "slow").css('z-index', 1);
+  $('#new-game-menu').animate({opacity: 0.9}, "slow").css('z-index', 100);
 }
 
 var dont_submit;
@@ -761,7 +795,6 @@ $('#form-new-game').submit(function() {
   
   $('#new-game-menu').animate({opacity: 0}, "slow", function() {
     $(this).css('z-index', -1);
-//     console.log("cause 2");
     new_game();
   });
   
@@ -769,9 +802,78 @@ $('#form-new-game').submit(function() {
 });
 
 $('#btn-new-game-cancel').click(function() {
-  console.log("click");
   dont_submit = true;
   $('#new-game-menu').animate({opacity: 0}, "slow", function() {
     $(this).css('z-index', -1);
   });
 });
+
+var State = function(board, turn) {
+  this.board = board;
+  this.turn = turn;
+};
+
+function child_potential(child, t, turn) {
+  var w;
+  if (child.State.turn === turn)
+    w = child.hits - child.misses;
+  else w = child.misses - child.hits;
+  var n = child.total_tries;
+  var c = expansion_const;
+  
+  return w / n  +  c * Math.sqrt(Math.log(t) / n);
+}
+
+var MCTS_Node = function(State, parent, last_move) {
+  this.State = State;
+  this.parent = parent;
+  this.last_move = last_move;
+  this.hits = 0;
+  this.misses = 0;
+  this.total_tries = 0;
+};
+
+MCTS_Node.prototype.choose_child = function() {
+  if (!this.children)
+    this.children = MCTS_get_children(this.State, this);
+  if (this.children.length === 0) // leaf node
+    this.run_simulation();
+  else {
+    var i;
+    var unexplored = [];
+    for (i = 0; i < this.children.length; i++)
+      if (this.children[i].total_tries === 0)
+        unexplored.push(this.children[i]);
+
+    if (unexplored.length > 0)
+      unexplored[Math.floor(Math.random() * unexplored.length)].run_simulation();
+    else {
+      var best_child = this.children[0], best_potential = child_potential(this.children[0], this.total_tries, this.State.turn), potential;
+      for (i = 1; i < this.children.length; i++) {
+        potential = child_potential(this.children[i], this.total_tries, this.State.turn);
+        if (potential > best_potential) {
+          best_potential = potential;
+          best_child = this.children[i];
+        }
+      }
+      best_child.choose_child();
+    }
+  }
+};
+
+MCTS_Node.prototype.run_simulation = function() {
+  this.back_propogate(MCTS_simulate(this.State));
+};
+
+MCTS_Node.prototype.back_propogate = function(simulation) {
+  if (simulation > 0)
+    this.hits++;
+  else if (simulation < 0)
+    this.misses++;
+  this.total_tries++;
+  if (this.parent) {
+    if (this.parent.State.turn === this.State.turn)
+      this.parent.back_propogate(simulation);
+    else this.parent.back_propogate(-simulation);
+  }
+};
