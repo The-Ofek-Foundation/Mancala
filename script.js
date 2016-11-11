@@ -25,8 +25,8 @@ var brush = boardui.getContext("2d");
 
 function pageReady() {
 
-	docwidth = $("#content-wrapper").outerWidth(true);
-	docheight = $("#content-wrapper").outerHeight(true);
+	docwidth = getElemWidth(document.getElementById('content-wrapper'));
+	docheight = getElemHeight(document.getElementById('content-wrapper'));
 	wrapperTop = $("#content-wrapper").position().top;
 
 	$('#board').width(docwidth).height(docheight);
@@ -51,8 +51,8 @@ $(window).resize(function() {
 	$("#content-wrapper").outerWidth($(window).outerWidth(true));
 	$("#content-wrapper").outerHeight($(window).outerHeight(true) - $("#content-wrapper").position().top);
 
-	docwidth = $("#content-wrapper").outerWidth(true);
-	docheight = $("#content-wrapper").outerHeight(true);
+	docwidth = getElemWidth(document.getElementById('content-wrapper'));
+	docheight = getElemHeight(document.getElementById('content-wrapper'));
 
 	$("#form-new-game").height(docheight * 0.6);
 
