@@ -20,13 +20,13 @@ var maxTrials = 1500000; // prevents overload (occurs around 2.3 million)
 var wrapperTop;
 var numChoose1, numChoose2, numChoose3, lnc1, lnc2, lnc3, stopChoose;
 
-var boardui = document.getElementById("board");
+var boardui = getElemId("board");
 var brush = boardui.getContext("2d");
 
 function pageReady() {
 
-	docwidth = getElemWidth(document.getElementById('content-wrapper'));
-	docheight = getElemHeight(document.getElementById('content-wrapper'));
+	docwidth = getElemWidth(getElemId('content-wrapper'));
+	docheight = getElemHeight(getElemId('content-wrapper'));
 	wrapperTop = $("#content-wrapper").position().top;
 
 	$('#board').width(docwidth).height(docheight);
@@ -47,12 +47,9 @@ function pageReady() {
 	$('#new-game-menu').css('left', (docwidth - $('#new-game-menu').outerWidth()) / 2);
 };
 
-$(window).resize(function() {
-	$("#content-wrapper").outerWidth($(window).outerWidth(true));
-	$("#content-wrapper").outerHeight($(window).outerHeight(true) - $("#content-wrapper").position().top);
-
-	docwidth = getElemWidth(document.getElementById('content-wrapper'));
-	docheight = getElemHeight(document.getElementById('content-wrapper'));
+function onResize() {
+	docwidth = getElemWidth(getElemId('content-wrapper'));
+	docheight = getElemHeight(getElemId('content-wrapper'));
 
 	$("#form-new-game").height(docheight * 0.6);
 
@@ -75,7 +72,7 @@ $(window).resize(function() {
 	$('#new-game-menu').css('left', (docwidth - $('#new-game-menu').outerWidth()) / 2);
 
 	drawBoard();
-});
+}
 
 function newGame() {
 	board = new Array(pits * 2 + 2);
