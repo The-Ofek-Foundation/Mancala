@@ -1,80 +1,81 @@
-var docwidth, docheight;
-var pits = 6;
-var seedsPerPit = 4;
+var docWidth, docHeight;
+var pits;
+var seedsPerPit;
 var board, boardCopy;
 var topTurnGlobal;
-var monteCarloTrials = 200000;
-var ai = -1;
-var capturingRules = "Same Side and Opposite Occupied";
-var reverseDrawing = true;
+var monteCarloTrials;
+var aiTurn;
+var capturingRules;
+var reverseDrawing;
 var lastCaptureGlobal, lastMoveGlobal, lastSowGlobal;
 var globalRoot;
-var expansionConstant = 3.5;
+var expansionConstant;
 var boardStates, stateOn;
-var ponder = false, pondering;
+var ponder, pondering;
 var lastRec;
-var certaintyThreshold = 0.5;
+var certaintyThreshold;
 var monteCarloAide = false;
-var MCTSWeights = false;
+var drawWeights;
 var maxTrials = 1500000; // prevents overload (occurs around 2.3 million)
 var wrapperTop;
 var numChoose1, numChoose2, numChoose3, lnc1, lnc2, lnc3, stopChoose;
 
-var boardui = getElemId("board");
-var brush = boardui.getContext("2d");
+var boardui = getElemId('board');
+var brush = boardui.getContext('2d');
+var centerDiv = getElemId('center-div');
+var analElem = getElemId('anal'), numTrialsElem = getElemId('num-trials');
 
 function pageReady() {
-
-	docwidth = getElemWidth(getElemId('content-wrapper'));
-	docheight = getElemHeight(getElemId('content-wrapper'));
-	wrapperTop = $("#content-wrapper").position().top;
-
-	$('#board').width(docwidth).height(docheight);
-
-	boardui.setAttribute('width', docwidth);
-	boardui.setAttribute('height', docheight);
-
+	resizeBoard();
 	newGame();
+	setTimeout(resizeButtons, 0);
+	setTimeout(resizeGameSettingsTable, 0);
+}
 
-	$("#form-new-game").height(docheight * 0.6);
+function resizeBoard() {
+	docWidth = getElemWidth(contentWrapper);
+	docHeight = getElemHeight(contentWrapper);
+	wrapperTop = contentWrapper.offsetTop;
 
-	$('.center-btn').css('font-size', docheight / 10);
-	$('#undo-btn').css('top', (docheight- $('#undo-btn').height()) / 2);
-	$('#redo-btn').css('top', (docheight - $('#redo-btn').height()) / 2);
-	$('#new-game-btn').css('top', (docheight - $('#new-game-btn').height()) / 2);
-	$('#new-game-btn').css('left', (docwidth - $('#new-game-btn').outerWidth()) / 2);
-	$('#new-game-menu').css('top', (docheight - $('#new-game-menu').outerHeight()) / 2);
-	$('#new-game-menu').css('left', (docwidth - $('#new-game-menu').outerWidth()) / 2);
-};
+	setElemWidth(boardui, docWidth);
+	setElemHeight(boardui, docHeight);
+	boardui.setAttribute('width', docWidth);
+	boardui.setAttribute('height', docHeight);
+
+	ovalWidth = docWidth / (pits + 3);
+	ovalHeight = docHeight / 5;
+
+	resizeButtons();
+	resizeGameSettingsTable();
+}
+
+function resizeButtons() {
+	setElemWidth(centerDiv, ovalWidth * pits);
+	setElemHeight(centerDiv, ovalHeight);
+	var cBs = centerDiv.children, width = ovalWidth * pits + 1,
+		fontSize = docHeight / 10;
+	while (width > ovalWidth * pits) {
+		width = 0;
+		for (var i = 0, elem = cBs[i]; i < cBs.length; i++, elem = cBs[i]) {
+			setElemStyle(elem, 'font-size', fontSize + "px");
+			width += getElemWidth(elem);
+		}
+		fontSize--;
+	}
+	centerElement(centerDiv);
+	centerVertically(getElemId('undo-btn'));
+	fitParent();
+}
 
 function onResize() {
-	docwidth = getElemWidth(getElemId('content-wrapper'));
-	docheight = getElemHeight(getElemId('content-wrapper'));
-
-	$("#form-new-game").height(docheight * 0.6);
-
-	boardui.setAttribute('width', docwidth);
-	boardui.setAttribute('height', docheight);
-
-	ovalWidth = docwidth / (pits + 3);
-	ovalHeight = docheight / 5;
-
-	wrapperTop = $("#content-wrapper").position().top;
-
-	$('#board').width(docwidth).height(docheight);
-
-	$('.center-btn').css('font-size', docheight / 10);
-	$('#undo-btn').css('top', (docheight- $('#undo-btn').height()) / 2);
-	$('#redo-btn').css('top', (docheight - $('#redo-btn').height()) / 2);
-	$('#new-game-btn').css('top', (docheight - $('#new-game-btn').height()) / 2);
-	$('#new-game-btn').css('left', (docwidth - $('#new-game-btn').outerWidth()) / 2);
-	$('#new-game-menu').css('top', (docheight - $('#new-game-menu').outerHeight()) / 2);
-	$('#new-game-menu').css('left', (docwidth - $('#new-game-menu').outerWidth()) / 2);
-
+	resizeBoard();
 	drawBoard();
 }
 
 function newGame() {
+	getSettings();
+	populateSettingsForm(gameSettings.getSettings());
+
 	board = new Array(pits * 2 + 2);
 	for (var i = 0; i < pits * 2 + 2; i++)
 		board[i] = seedsPerPit;
@@ -88,17 +89,43 @@ function newGame() {
 	globalRoot = createMCTSRoot();
 	numChoose1 = numChoose2 = numChoose3 = lnc1 = lnc2 = lnc3 = stopChoose = false;
 
-	ovalWidth = docwidth / (pits + 3);
-	ovalHeight = docheight / 5;
+	ovalWidth = docWidth / (pits + 3);
+	ovalHeight = docHeight / 5;
 	drawBoard();
-	adjustButtons();
 
-	if (ai == "First" || ai == "Both")
+	if (aiTurn === 'first' || aiTurn === 'both')
 		setTimeout(playMonteCarloAiMove, 30);
 
 	stopPonder();
 	if (ponder)
 		startPonder();
+}
+
+function getSettings() {
+	pits = gameSettings.getOrSet('pits', 6);
+	seedsPerPit = gameSettings.getOrSet('seedsPerPit', 4);
+	ponder = gameSettings.getOrSet('ponder', false);
+	drawWeights = gameSettings.getOrSet('drawWeights', false);
+	capturingRules = gameSettings.getOrSet('capturingRules',
+		"Same Side and Opposite Occupied");
+	reverseDrawing = gameSettings.getOrSet('reverseDrawing', true)
+	aiTurn = gameSettings.getOrSet('aiTurn', 'second');
+	monteCarloTrials = gameSettings.getOrSet('monteCarloTrials', 200000)
+	expansionConstant = gameSettings.getOrSet('expansionConstant', 3.5)
+	certaintyThreshold = gameSettings.getOrSet('certaintyThreshold', 0.5)
+}
+
+function populateSettingsForm(settings) {
+	setInputValue('num-pits', pits);
+	setInputValue('seeds-per-pit', seedsPerPit);
+	setInputValue('ai-ponder', ponder);
+	setInputValue('mc-weight', drawWeights);
+	setInputValue('capture-rules', capturingRules);
+	setInputValue('reverse', reverseDrawing);
+	setInputValue('ai-turn', aiTurn);
+	setInputValue('mc-trials', monteCarloTrials);
+	setInputValue('mc-expansion', expansionConstant);
+	setInputValue('mc-certainty', 100 * (1 - certaintyThreshold));
 }
 
 function playMove(pitLoc) {
@@ -124,7 +151,7 @@ function playMove(pitLoc) {
 
 	drawBoard();
 
-	if (ai == "Both" || (ai == "First" && topTurnGlobal) || (ai == "Second" && !topTurnGlobal))
+	if (aiTurn == 'both' || (aiTurn == 'first' && topTurnGlobal) || (aiTurn == 'second' && !topTurnGlobal))
 		setTimeout(playMonteCarloAiMove, 30);
 }
 
@@ -189,23 +216,15 @@ function startPonder() {
 		}
 		lastRec = mostTriedChild(globalRoot, null);
 		updateAnalysis();
-		if (MCTSWeights && Math.random() > 0.9)
+		if (drawWeights && Math.random() > 0.9)
 			drawBoard();
 	}, 1);
 }
 
-function adjustButtons() {
-	$('.footer button').css('font-size', ovalHeight / 4);
-	$('.footer').css("height", ovalHeight / 2 + "px");
-//	 $('.footer').css('margin-bottom', ovalHeight / 2 - $('#anal').outerHeight(false));
-	$('.footer #anal').css('line-height', ovalHeight / 2 + "px");
-	$('.footer #num-trials').css('line-height', ovalHeight / 2 + "px");
-}
-
 function updateAnalysis() {
 	var range = getMCTSDepthRange();
-	$('#anal').text("Analysis: Best-" + range[1] +" Worst-" + range[0] + " Result-" + range[2]);
-	$('#num-trials').text("Trials: " + globalRoot.totalTries);
+	analElem.innerHTML = "Analysis: Best-" + range[1] +" Worst-" + range[0] + " Result-" + range[2];
+	numTrialsElem.innerHTML =  "Trials: " + globalRoot.totalTries;
 }
 
 function stopPonder() {
@@ -238,7 +257,7 @@ function runMCTSRecursive(times, threshold, timeOn, totalTimes, callback) {
 //	 if (lastRec != mostTriedChild(globalRoot, null)) {
 		lastRec = mostTriedChild(globalRoot, null);
 		updateAnalysis();
-		if (MCTSWeights)
+		if (drawWeights)
 			drawBoard();
 //	 }
 	if (threshold > 0) {
@@ -324,9 +343,9 @@ function getMCTSDepthRange() {
 	if (root.totalTries > (root.hits + root.misses) * 2)
 		range[2] = "Tie";
 	else if ((root.hits > root.misses) == topTurnGlobal)
-		range[2] = "First";
+		range[2] = 'first';
 	else if ((root.hits < root.misses) == topTurnGlobal)
-		range[2] = "Second";
+		range[2] = 'second';
 	else range[2] = "Tie";
 	return range;
 }
@@ -503,7 +522,7 @@ function drawEllipse(x, y, w, h) {
 }
 
 function clearBoard() {
-	brush.clearRect(0, 0, docwidth, docheight);
+	brush.clearRect(0, 0, docWidth, docHeight);
 }
 
 function getPitColor(ratio) {
@@ -536,7 +555,7 @@ function drawPit(pitLoc, x, y, width, height) {
 	if (lastRec && monteCarloAide && pitLoc == lastRec.lastMove)
 		brush.strokeStyle = "blue";
 	else brush.strokeStyle = "black";
-	if (MCTSWeights && MCTSGetNextRoot(pitLoc)) {
+	if (drawWeights && MCTSGetNextRoot(pitLoc)) {
 		var tries = MCTSGetNextRoot(pitLoc).totalTries;
 		var ratio = tries / globalRoot.totalTries;
 		brush.lineWidth = ratio * 2 * pits;
@@ -596,8 +615,8 @@ function getPitLoc(x, y) {
 	return x + 1 + (y > 0 ? (2 * (pits - x)):0);
 }
 
-$('#board').mousedown(function(e) {
-	if (ai === topTurnGlobal) {
+boardui.addEventListener('mousedown', function (e) {
+	if (aiTurn === topTurnGlobal) {
 		alert("It is not your turn!");
 		return;
 	}
@@ -795,12 +814,15 @@ function MCTSEndGame(tboard, topTurn) {
 	return true;
 }
 
-$(document).keydown(function(e) {
-	if (e.ctrlKey)
+document.addEventListener('keypress', function (event) {
+	if (event.ctrlKey)
 		return;
-	switch (e.which) {
-		case 78: // n
-			showNewGameMenu();
+	switch (event.which) {
+		case 115: case 83: // s
+			showSettingsForm();
+			break;
+		case 110: case 78: // n
+			newGame();
 			break;
 		case 85: // u
 			undo();
@@ -811,47 +833,52 @@ $(document).keydown(function(e) {
 	}
 });
 
-function showNewGameMenu() {
-	$('#new-game-menu').animate({opacity: 0.9}, "slow").css('z-index', 100);
-}
-
-var dontSubmit;
-
-$('#form-new-game').submit(function() {
-	if (dontSubmit) {
-		dontSubmit = false;
-		return false;
+document.addEventListener('keypress', function (event) {
+	switch (event.which) {
+		case 115: case 83: // s
+			showSettingsForm();
+			break;
+		case 110: case 78: // n
+			newGame();
+			break;
 	}
+});
 
-	pits = parseInt($('input[name="num-pits"]').val());
-	seedsPerPit = parseInt($('input[name="seeds-per-pit"]').val());
+getElemId('done').addEventListener('click', function (event) {
+	var settings = getNewSettings();
+	gameSettings.setSettings(settings);
+	hideSettingsForm();
+	newGame();
+});
 
-	var aiPlaying = $('input[name="ai"]').prop('checked');
-	ponder = $('input[name="ai-ponder"]').prop('checked');
-	MCTSWeights = $('input[name="mc-weight"]').prop('checked');
-	capturingRules = $('input[name="capture-rules"]').val();
-	reverseDrawing = $('input[name="reverse"]').prop('checked');
-	ai = $('input[name="ai-turn"]').val();
-	if (!aiPlaying)
-		ai = -1;
-	monteCarloTrials = $('input[name="mc-trials"]').val();
-	expansionConstant = $('input[name="mc-expansion"]').val();
-	certaintyThreshold = 1 - $('input[name="mc-certainty"]').val() / 100;
+getElemId('cancel').addEventListener('click', function (event) {
+	hideSettingsForm();
+	populateSettingsForm(gameSettings.getSettings());
+});
 
-	$('#new-game-menu').animate({opacity: 0}, "slow", function() {
-		$(this).css('z-index', -1);
+if (getElemId('save'))
+	getElemId('save').addEventListener('click', function (event) {
+		var settings = getNewSettings();
+		gameSettings.setSettings(settings);
+		gameSettings.saveSettings(settings);
+		hideSettingsForm();
 		newGame();
 	});
 
-	return false;
-});
-
-$('#btn-new-game-cancel').click(function() {
-	dontSubmit = true;
-	$('#new-game-menu').animate({opacity: 0}, "slow", function() {
-		$(this).css('z-index', -1);
-	});
-});
+function getNewSettings() {
+	return {
+		'pits': getInputValue('num-pits'),
+		'seedsPerPit': getInputValue('seeds-per-pit'),
+		'ponder': getInputValue('ai-ponder'),
+		'drawWeights': getInputValue('mc-weight'),
+		'capturingRules': getInputValue('capture-rules'),
+		'reverseDrawing': getInputValue('reverse'),
+		'aiTurn': getInputValue('ai-turn'),
+		'monteCarloTrials': getInputValue('mc-trials'),
+		'expansionConstant': getInputValue('mc-expansion'),
+		'certaintyThreshold': 1 - getInputValue('mc-certainty') / 100,
+	};
+}
 
 class State {
 	constructor(board, turn) {
