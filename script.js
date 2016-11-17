@@ -815,25 +815,6 @@ function MCTSEndGame(tboard, topTurn) {
 }
 
 document.addEventListener('keypress', function (event) {
-	if (event.ctrlKey)
-		return;
-	switch (event.which) {
-		case 115: case 83: // s
-			showSettingsForm();
-			break;
-		case 110: case 78: // n
-			newGame();
-			break;
-		case 85: // u
-			undo();
-			break;
-		case 82: // r
-			redo();
-			break;
-	}
-});
-
-document.addEventListener('keypress', function (event) {
 	switch (event.which) {
 		case 115: case 83: // s
 			showSettingsForm();
