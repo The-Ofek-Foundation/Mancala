@@ -62,7 +62,7 @@ function resizeButtons() {
 		}
 		fontSize--;
 	}
-	centerElement(centerDiv);
+	centerElem(centerDiv);
 	centerVertically(getElemId('undo-btn'));
 	fitParent();
 }
