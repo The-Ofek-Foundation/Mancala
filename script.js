@@ -29,7 +29,7 @@ function pageReady() {
 	resizeBoard();
 	newGame();
 	setTimeout(resizeButtons, 0);
-	setTimeout(resizeGameSettingsTable, 0);
+	setTimeout(resizeSettingsTable, 0);
 }
 
 function resizeBoard() {
@@ -46,7 +46,7 @@ function resizeBoard() {
 	ovalHeight = docHeight / 5;
 
 	resizeButtons();
-	resizeGameSettingsTable();
+	resizeSettingsTable();
 }
 
 function resizeButtons() {
